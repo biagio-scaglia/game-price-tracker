@@ -45,7 +45,9 @@ Il programma mostrerà un menu interattivo con le seguenti opzioni:
 3. **🔧 Analizza con filtri avanzati**: filtra le offerte per prezzo, sconto minimo, store specifico e altro
 4. **📌 Gestisci wishlist**: visualizza, aggiungi o rimuovi giochi dalla tua wishlist
 5. **🔔 Verifica alert prezzi**: controlla se i giochi nella wishlist hanno raggiunto il prezzo target
-6. **❌ Esci**: esce dal programma
+6. **📋 Visualizza tutti gli store disponibili**: mostra la lista completa di store supportati (CheapShark + store aggiuntivi)
+7. **🧹 Pulisci schermo**: pulisce l'output della console per una migliore leggibilità
+8. **❌ Esci**: esce dal programma
 
 ## 📁 Struttura Progetto
 
@@ -56,7 +58,8 @@ game-price-tracker/
 │   ├── parser.py          # Conversione dati JSON in DataFrame pandas
 │   ├── saver.py           # Salvataggio dati in CSV, JSON, Excel
 │   ├── filters.py         # Filtri avanzati per le offerte
-│   └── wishlist.py        # Gestione wishlist e alert prezzi
+│   ├── wishlist.py        # Gestione wishlist e alert prezzi
+│   └── custom_stores.py   # Gestione store aggiuntivi non in CheapShark
 ├── analytics/             # Moduli per analisi e visualizzazione
 │   ├── analyzer.py        # Statistiche e analisi (media, top, confronto store)
 │   └── chart.py           # Generazione grafici con matplotlib
