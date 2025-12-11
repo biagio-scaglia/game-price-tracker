@@ -415,6 +415,14 @@ def check_price_alerts():
         print(f"   💸 Risparmi rispetto al target: ${risparmio:.2f}")
         print(f"   🔗 https://www.cheapshark.com/redirect?dealID={alert.get('dealID', '')}")
 
+def clear_screen():
+    """Pulisce lo schermo della console"""
+    import platform
+    if platform.system() == "Windows":
+        os.system('cls')
+    else:
+        os.system('clear')
+
 def show_additional_stores_links(game_title):
     """Mostra link per cercare su store aggiuntivi non supportati da CheapShark"""
     custom_stores = get_custom_stores()
@@ -507,7 +515,8 @@ def show_menu():
     print("  4. 📌 Gestisci wishlist")
     print("  5. 🔔 Verifica alert prezzi")
     print("  6. 📋 Visualizza tutti gli store disponibili")
-    print("  7. ❌ Esci")
+    print("  7. 🧹 Pulisci schermo")
+    print("  8. ❌ Esci")
     print("="*70)
 
 def main():
@@ -529,6 +538,8 @@ def main():
             elif choice == "6":
                 list_all_stores()
             elif choice == "7":
+                clear_screen()
+            elif choice == "8":
                 print("\nArrivederci!")
                 break
             else:
