@@ -3,6 +3,7 @@ from data.parser import deals_to_dataframe, game_details_to_dataframe, search_re
 from data.saver import save_data
 from data.wishlist import add_to_wishlist, remove_from_wishlist, get_wishlist, check_wishlist_prices
 from data.filters import filter_deals, apply_advanced_filters
+from data.custom_stores import get_all_stores_info, get_custom_stores, search_url_for_store
 from analytics.analyzer import average_saving, top_savings, best_store_for_game, store_analysis, get_statistics
 from analytics.chart import plot_savings_trend, plot_store_comparison, plot_game_prices
 import os
@@ -228,6 +229,9 @@ def show_game_details(game_id, game_title):
         plot_game_prices(deals_df, game_title, stores_dict, thumb_url)
         print(f"\n✅ Grafico salvato nella cartella 'charts/'")
         
+        # Mostra link per ricerca su store aggiuntivi
+        show_additional_stores_links(game_title)
+        
         # Offri opzione per aggiungere alla wishlist
         wishlist_choice = input("\n📌 Vuoi aggiungere questo gioco alla wishlist? (s/n): ").strip().lower()
         if wishlist_choice == 's':
@@ -411,6 +415,71 @@ def check_price_alerts():
         print(f"   💸 Risparmi rispetto al target: ${risparmio:.2f}")
         print(f"   🔗 https://www.cheapshark.com/redirect?dealID={alert.get('dealID', '')}")
 
+def show_additional_stores_links(game_title):
+    """Mostra link per cercare su store aggiuntivi non supportati da CheapShark"""
+    custom_stores = get_custom_stores()
+    
+    if not custom_stores:
+        return
+    
+    print("\n" + "─"*70)
+    print("🔗 RICERCA SU ALTRI STORE")
+    print("─"*70)
+    print("💡 Link per cercare manualmente su store aggiuntivi:\n")
+    
+    # Mostra solo i primi 10 per non appesantire l'output
+    stores_list = list(custom_stores.items())[:10]
+    
+    for store_name, store_info in stores_list:
+        search_url = search_url_for_store(store_name, game_title)
+        website = store_info.get("website", "")
+        print(f"  🏪 {store_name}")
+        if search_url:
+            print(f"     🔗 {search_url}")
+        elif website:
+            print(f"     🔗 {website}")
+        print()
+    
+    if len(custom_stores) > 10:
+        print(f"  ... e altri {len(custom_stores) - 10} store")
+        print(f"  💡 Usa l'opzione 'Visualizza tutti gli store' dal menu per vedere tutti i link")
+
+def list_all_stores():
+    """Mostra tutti gli store disponibili (CheapShark + custom)"""
+    print("\n" + "="*70)
+    print(" " * 20 + "📋 TUTTI GLI STORE DISPONIBILI")
+    print("="*70)
+    
+    # Store da CheapShark
+    print("\n🏪 STORE SUPPORTATI DA CHEAPSHARK API")
+    print("─"*70)
+    stores_dict = load_stores()
+    cheapshark_stores = list(stores_dict.values())
+    
+    # Ordina alfabeticamente
+    cheapshark_stores_sorted = sorted(cheapshark_stores)
+    
+    for i, store_name in enumerate(cheapshark_stores_sorted, 1):
+        print(f"  {i:2d}. {store_name}")
+    
+    # Store custom
+    custom_stores = get_all_stores_info()
+    supported_custom = {name: info for name, info in custom_stores.items() if info.get("supported", False)}
+    unsupported_custom = {name: info for name, info in custom_stores.items() if not info.get("supported", False)}
+    
+    if unsupported_custom:
+        print("\n🏪 ALTRI STORE (ricerca manuale richiesta)")
+        print("─"*70)
+        for i, (store_name, store_info) in enumerate(sorted(unsupported_custom.items()), 1):
+            website = store_info.get("website", "")
+            notes = store_info.get("notes", "")
+            print(f"  {i:2d}. {store_name}")
+            if website:
+                print(f"      🔗 {website}")
+            if notes:
+                print(f"      ℹ️  {notes}")
+            print()
+
 def remove_game_from_wishlist(wishlist):
     """Rimuove un gioco dalla wishlist"""
     if not wishlist:
@@ -437,7 +506,8 @@ def show_menu():
     print("  3. 🔧 Analizza con filtri avanzati")
     print("  4. 📌 Gestisci wishlist")
     print("  5. 🔔 Verifica alert prezzi")
-    print("  6. ❌ Esci")
+    print("  6. 📋 Visualizza tutti gli store disponibili")
+    print("  7. ❌ Esci")
     print("="*70)
 
 def main():
@@ -457,6 +527,8 @@ def main():
             elif choice == "5":
                 check_price_alerts()
             elif choice == "6":
+                list_all_stores()
+            elif choice == "7":
                 print("\nArrivederci!")
                 break
             else:
