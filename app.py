@@ -1,6 +1,8 @@
 from data.fetcher import get_deals, search_games, get_game_details, get_stores
 from data.parser import deals_to_dataframe, game_details_to_dataframe, search_results_to_dataframe
-from data.saver import save_csv
+from data.saver import save_data
+from data.wishlist import add_to_wishlist, remove_from_wishlist, get_wishlist, check_wishlist_prices
+from data.filters import filter_deals, apply_advanced_filters
 from analytics.analyzer import average_saving, top_savings, best_store_for_game, store_analysis, get_statistics
 from analytics.chart import plot_savings_trend, plot_store_comparison, plot_game_prices
 import os
@@ -71,10 +73,25 @@ def analyze_all_deals():
         print(store_df_display.to_string(index=False))
         plot_store_comparison(store_df)
     
-    if not os.path.exists("exports"):
-        os.makedirs("exports")
-    save_csv(df, "exports/deals.csv")
-    print(f"\n💾 Dati salvati in exports/deals.csv")
+    # Salvataggio in CSV
+    csv_path = save_data(df, "deals", format='csv')
+    if csv_path:
+        print(f"\n💾 Dati salvati in {csv_path}")
+    
+    # Offri export multipli
+    export_more = input("\n💾 Vuoi esportare anche in altri formati? (s/n): ").strip().lower()
+    if export_more == 's':
+        json_path = save_data(df, "deals", format='json')
+        if json_path:
+            print(f"✅ Export JSON completato: {json_path}")
+        else:
+            print("❌ Export JSON fallito")
+        
+        xlsx_path = save_data(df, "deals", format='excel')
+        if xlsx_path:
+            print(f"✅ Export Excel completato: {xlsx_path}")
+        else:
+            print("⚠️  Export Excel fallito (installa openpyxl: pip install openpyxl)")
     
     plot_savings_trend(df)
     print("\n✅ Analisi completata! Grafici salvati nella cartella 'charts/'")
@@ -206,8 +223,206 @@ def show_game_details(game_id, game_title):
         thumb_url = info.get("thumb", "")
         plot_game_prices(deals_df, game_title, stores_dict, thumb_url)
         print(f"\n✅ Grafico salvato nella cartella 'charts/'")
+        
+        # Offri opzione per aggiungere alla wishlist
+        wishlist_choice = input("\n📌 Vuoi aggiungere questo gioco alla wishlist? (s/n): ").strip().lower()
+        if wishlist_choice == 's':
+            target_price_input = input("💰 Inserisci il prezzo target (lascia vuoto per nessun target): ").strip()
+            target_price = None
+            if target_price_input:
+                try:
+                    target_price = float(target_price_input)
+                except ValueError:
+                    print("❌ Prezzo non valido, aggiunto senza target")
+            success, message = add_to_wishlist(game_id, game_title, target_price)
+            print(f"✅ {message}")
     else:
         print("\n❌ Nessuna offerta disponibile al momento")
+
+def analyze_with_filters():
+    """Analizza le offerte con filtri avanzati"""
+    print("\n" + "="*70)
+    print(" " * 15 + "ANALISI OFFERTE CON FILTRI")
+    print("="*70)
+    
+    print("\n📡 Recupero offerte da CheapShark...")
+    deals = get_deals()
+    print(f"✓ Trovate {len(deals)} offerte")
+    
+    df = deals_to_dataframe(deals)
+    
+    if df.empty:
+        print("❌ Nessun dato disponibile")
+        return
+    
+    print("\n🔧 Configura i filtri (lascia vuoto per saltare):")
+    
+    # Prezzo minimo
+    min_price_input = input("  💵 Prezzo minimo ($): ").strip()
+    min_price = float(min_price_input) if min_price_input else None
+    
+    # Prezzo massimo
+    max_price_input = input("  💵 Prezzo massimo ($): ").strip()
+    max_price = float(max_price_input) if max_price_input else None
+    
+    # Sconto minimo
+    min_savings_input = input("  🎯 Sconto minimo (%): ").strip()
+    min_savings = float(min_savings_input) if min_savings_input else None
+    
+    # Store
+    stores_dict = load_stores()
+    print("\n  🏪 Store disponibili:")
+    store_list = list(stores_dict.items())[:10]  # Mostra i primi 10
+    for store_id, store_name in store_list:
+        print(f"    {store_id}: {store_name}")
+    store_id_input = input("  🏪 ID Store (lascia vuoto per tutti, multipli separati da virgola): ").strip()
+    store_ids = None
+    if store_id_input:
+        try:
+            store_ids = [int(s.strip()) for s in store_id_input.split(',')]
+        except:
+            print("  ⚠️  Formato non valido, verranno mostrati tutti gli store")
+    
+    # Applica filtri
+    filtered_df = filter_deals(df, min_price=min_price, max_price=max_price, 
+                               min_savings=min_savings, store_id=store_ids)
+    
+    if filtered_df.empty:
+        print("\n❌ Nessuna offerta corrisponde ai filtri selezionati")
+        return
+    
+    print(f"\n✅ Trovate {len(filtered_df)} offerte corrispondenti ai filtri")
+    
+    stats = get_statistics(filtered_df)
+    
+    print("\n" + "─"*70)
+    print("📊 STATISTICHE OFFERTE FILTRATE")
+    print("─"*70)
+    print(f"  • Totale offerte: {stats['total_deals']}")
+    print(f"  • Risparmio medio: {stats['avg_saving']:.2f}%")
+    print(f"  • Prezzo medio: ${stats['avg_price']:.2f}")
+    print(f"  • Prezzo minimo: ${stats['min_price']:.2f}")
+    print(f"  • Prezzo massimo: ${stats['max_price']:.2f}")
+    
+    print("\n" + "─"*70)
+    print("🏆 TOP 10 OFFERTE FILTRATE")
+    print("─"*70)
+    top_10 = top_savings(filtered_df, 10)
+    for i, (idx, row) in enumerate(top_10.iterrows(), 1):
+        print(f"  {i}. {row['title']}")
+        print(f"     💰 ${row['salePrice']:.2f} | 💸 {row['savings']:.2f}%")
+    
+    # Export
+    export_format = input("\n💾 Formato export (csv/json/excel, default: csv): ").strip().lower() or 'csv'
+    if export_format not in ['csv', 'json', 'excel']:
+        export_format = 'csv'
+    
+    saved_path = save_data(filtered_df, "filtered_deals", format=export_format)
+    if saved_path:
+        print(f"✅ Dati salvati in {saved_path}")
+    else:
+        print("❌ Errore nel salvataggio dei dati")
+
+def manage_wishlist():
+    """Gestisce la wishlist"""
+    print("\n" + "="*70)
+    print(" " * 25 + "WISHLIST")
+    print("="*70)
+    
+    wishlist = get_wishlist()
+    
+    if not wishlist:
+        print("\n📭 La tua wishlist è vuota")
+        print("\n💡 Suggerimento: Aggiungi giochi dalla ricerca per monitorare i prezzi!")
+        return
+    
+    print(f"\n📋 Giochi nella wishlist ({len(wishlist)}):")
+    print("─"*70)
+    
+    for i, item in enumerate(wishlist, 1):
+        game_id = item.get("gameID")
+        title = item.get("title")
+        target_price = item.get("targetPrice")
+        lowest_seen = item.get("lowestPriceSeen")
+        
+        print(f"  {i}. {title}")
+        if target_price:
+            print(f"     🎯 Prezzo target: ${target_price:.2f}")
+        if lowest_seen:
+            print(f"     📉 Prezzo più basso visto: ${lowest_seen:.2f}")
+        else:
+            print(f"     📉 Prezzo più basso visto: Non ancora controllato")
+        print()
+    
+    print("\nOpzioni:")
+    print("  1. Verifica prezzi e mostra alert")
+    print("  2. Rimuovi un gioco")
+    print("  3. Torna al menu principale")
+    
+    choice = input("\nScegli un'opzione: ").strip()
+    
+    if choice == "1":
+        check_price_alerts()
+    elif choice == "2":
+        remove_game_from_wishlist(wishlist)
+    else:
+        return
+
+def check_price_alerts():
+    """Verifica i prezzi della wishlist e mostra gli alert"""
+    wishlist = get_wishlist()
+    
+    if not wishlist:
+        print("\n📭 La tua wishlist è vuota")
+        print("💡 Aggiungi giochi dalla ricerca per monitorare i prezzi!")
+        return
+    
+    games_with_target = [item for item in wishlist if item.get("targetPrice")]
+    if not games_with_target:
+        print("\n⚠️  Nessun gioco nella wishlist ha un prezzo target impostato")
+        print("💡 Modifica i giochi nella wishlist per impostare un prezzo target")
+        return
+    
+    print(f"\n📡 Verifica prezzi per {len(games_with_target)} giochi in corso...")
+    alerts = check_wishlist_prices()
+    
+    if not alerts:
+        print("✅ Nessun alert: nessun gioco ha raggiunto il prezzo target")
+        return
+    
+    print("\n" + "="*70)
+    print(" " * 25 + "🎉 ALERT PREZZI!")
+    print("="*70)
+    stores_dict = load_stores()
+    
+    for alert in alerts:
+        store_id = str(alert.get("storeID", ""))
+        store_name = stores_dict.get(store_id, f"Store {store_id}")
+        
+        print(f"\n🎮 {alert['title']}")
+        print(f"   🎯 Prezzo target: ${alert['targetPrice']:.2f}")
+        print(f"   💰 Prezzo attuale: ${alert['currentPrice']:.2f}")
+        print(f"   🏪 Store: {store_name}")
+        risparmio = float(alert['targetPrice']) - alert['currentPrice']
+        print(f"   💸 Risparmi rispetto al target: ${risparmio:.2f}")
+        print(f"   🔗 https://www.cheapshark.com/redirect?dealID={alert.get('dealID', '')}")
+
+def remove_game_from_wishlist(wishlist):
+    """Rimuove un gioco dalla wishlist"""
+    if not wishlist:
+        return
+    
+    print("\nQuale gioco vuoi rimuovere?")
+    try:
+        choice = int(input("Numero: ").strip())
+        if 1 <= choice <= len(wishlist):
+            game_id = wishlist[choice - 1].get("gameID")
+            remove_from_wishlist(game_id)
+            print("✅ Gioco rimosso dalla wishlist")
+        else:
+            print("❌ Scelta non valida")
+    except ValueError:
+        print("❌ Inserisci un numero valido")
 
 def show_menu():
     print("\n" + "="*70)
@@ -215,7 +430,10 @@ def show_menu():
     print("="*70)
     print("\n  1. 📊 Analizza tutte le offerte")
     print("  2. 🔍 Cerca un gioco")
-    print("  3. ❌ Esci")
+    print("  3. 🔧 Analizza con filtri avanzati")
+    print("  4. 📌 Gestisci wishlist")
+    print("  5. 🔔 Verifica alert prezzi")
+    print("  6. ❌ Esci")
     print("="*70)
 
 def main():
@@ -229,6 +447,12 @@ def main():
             elif choice == "2":
                 search_game()
             elif choice == "3":
+                analyze_with_filters()
+            elif choice == "4":
+                manage_wishlist()
+            elif choice == "5":
+                check_price_alerts()
+            elif choice == "6":
                 print("\nArrivederci!")
                 break
             else:
