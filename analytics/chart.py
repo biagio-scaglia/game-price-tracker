@@ -55,7 +55,10 @@ def plot_savings_trend(df):
     ax.grid(True, alpha=0.3, axis="x", linestyle="--")
     ax.set_xlim(left=-10)
     ax.invert_yaxis()
-    plt.tight_layout()
+    try:
+        plt.tight_layout(rect=[0.02, 0, 0.98, 1])
+    except:
+        plt.tight_layout()
     
     filepath = os.path.join(CHARTS_DIR, "savings_trend.png")
     plt.savefig(filepath, dpi=300, bbox_inches="tight", facecolor="white")

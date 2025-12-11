@@ -35,10 +35,17 @@ def save_excel(df, path):
     if df.empty:
         return False
     ensure_export_dirs()
+    
+    # Verifica se openpyxl è installato
+    try:
+        import openpyxl
+    except ImportError:
+        return False
+    
     try:
         df.to_excel(path, index=False, engine='openpyxl')
         return True
-    except ImportError:
+    except Exception:
         return False
 
 def save_data(df, filename, format='csv'):

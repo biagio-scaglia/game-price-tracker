@@ -23,9 +23,12 @@ wheels/
 *.egg
 
 charts/*.png
-exports/*.csv
+exports/
+wishlist.json
 *.png
 *.csv
+*.json
+*.xlsx
 
 .DS_Store
 .vscode/

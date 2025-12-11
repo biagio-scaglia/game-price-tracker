@@ -87,11 +87,15 @@ def analyze_all_deals():
         else:
             print("❌ Export JSON fallito")
         
-        xlsx_path = save_data(df, "deals", format='excel')
-        if xlsx_path:
-            print(f"✅ Export Excel completato: {xlsx_path}")
-        else:
-            print("⚠️  Export Excel fallito (installa openpyxl: pip install openpyxl)")
+        try:
+            import openpyxl
+            xlsx_path = save_data(df, "deals", format='excel')
+            if xlsx_path:
+                print(f"✅ Export Excel completato: {xlsx_path}")
+            else:
+                print("❌ Export Excel fallito")
+        except ImportError:
+            print("⚠️  Export Excel non disponibile (installa openpyxl: pip install openpyxl)")
     
     plot_savings_trend(df)
     print("\n✅ Analisi completata! Grafici salvati nella cartella 'charts/'")
